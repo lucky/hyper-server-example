@@ -29,7 +29,7 @@ pub async fn select_all(client: Arc<Client>) -> Result<Vec<Task>, tokio_postgres
         .query("SELECT id, person, description, created_at, completed_at FROM tasks ORDER BY created_at DESC", &[])
         .await?
         .iter()
-        .map(|row| row.into())
+        .map(std::convert::Into::into)
         .collect();
     Ok(task_vec)
 }
