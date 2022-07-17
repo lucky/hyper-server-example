@@ -35,7 +35,13 @@ And then view subsequent tasks at `http://localhost:3030/tasks`:
 
 ```sh
 curl http://localhost:3030/tasks
-[{"id":5,"person":"alex","description":"walk the dog","created_at":"2022-07-17T22:13:14.819717Z","completed_at":null}]
+[{"id":1,"person":"alex","description":"walk the dog","created_at":"2022-07-17T22:13:14.819717Z","completed_at":null}]
+```
+
+Complete a task by submitting a `POST` request to `/tasks/<id>/complete`. For example:
+
+```sh
+curl -iX POST http://localhost:3030/tasks/1/complete
 ```
 
 ## Testing
