@@ -1,4 +1,3 @@
-#![deny(warnings)]
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error, Method, Request, Response, Server, StatusCode};
 use std::sync::Arc;
@@ -6,7 +5,7 @@ use tokio_postgres::{Client, NoTls};
 
 mod tasks;
 
-use tasks::{insert_task, select_all_tasks, Task};
+use tasks::{insert, select_all, Task};
 
 fn do500() -> Response<Body> {
     Response::builder()
@@ -28,7 +27,7 @@ async fn post_task(
             return Ok(do500());
         }
     };
-    match insert_task(client, t).await {
+    match insert(client, t).await {
         Ok(()) => Ok(Response::new(Body::empty())),
         Err(e) => {
             println!("Error talking to database! {:?}", e);
@@ -45,17 +44,16 @@ enum Errors {
 
 async fn get_tasks(
     client: Arc<Client>,
-    _req: Request<Body>,
 ) -> Result<Response<Body>, Errors> {
-    let tasks = select_all_tasks(client).await.map_err(|e| Errors::Database(e))?;
-    let json = serde_json::to_string(&tasks).map_err(|e| Errors::Json(e))?;
+    let tasks = select_all(client).await.map_err(Errors::Database)?;
+    let json = serde_json::to_string(&tasks).map_err(Errors::Json)?;
     Ok(Response::new(Body::from(json)))
 }
 
 async fn serve(client: Arc<Client>, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
     match (req.method(), req.uri().path()) {
         (&Method::POST, "/tasks") => post_task(client, req).await,
-        (&Method::GET, "/tasks") => match get_tasks(client, req).await {
+        (&Method::GET, "/tasks") => match get_tasks(client).await {
             Ok(r) => Ok(r),
             Err(e) => {
                 println!("Unhandled error: {:?}", e);
@@ -94,9 +92,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let client = client.clone();
 
         async move {
-            Ok::<_, Error>(service_fn(move |_req| {
+            Ok::<_, Error>(service_fn(move |req| {
                 let client = client.clone();
-                async move { serve(client, _req).await }
+                async move { serve(client, req).await }
             }))
         }
     });
