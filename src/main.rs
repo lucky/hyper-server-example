@@ -7,6 +7,13 @@ mod tasks;
 
 use tasks::{insert, select_all, Task};
 
+fn do400(reason: Body) -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::BAD_REQUEST)
+        .body(reason)
+        .unwrap()
+}
+
 fn do500() -> Response<Body> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -18,7 +25,13 @@ async fn post_task(
     client: Arc<Client>,
     req: Request<Body>,
 ) -> Result<Response<Body>, hyper::Error> {
-    // TODO require application/json content-type
+    let content_type = match req.headers().get("Content-Type") {
+        Some(ct) => ct.to_str().unwrap(),
+        None => "",
+    };
+    if !content_type.contains("application/json") {
+        return Ok(do400("Content-Type must be application/json".into()));
+    }
     let whole_body = hyper::body::to_bytes(req.into_body()).await?;
     let t: Task = match serde_json::from_slice(&whole_body.slice(0..)) {
         Ok(t) => t,

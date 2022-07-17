@@ -27,7 +27,6 @@ pub async fn select_all(client: Arc<Client>) -> Result<Vec<Task>, tokio_postgres
     let task_vec = client
         .query("SELECT id, person, description FROM tasks", &[])
         .await?
-        //map to Vec<Task>
         .iter()
         .map(|row| {
             let id: i32 = row.get(0);
