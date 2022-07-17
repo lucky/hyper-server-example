@@ -7,18 +7,23 @@ mod tasks;
 
 use tasks::{insert, select_all, Task};
 
+fn make_response(status: StatusCode, body: Body) -> Response<Body> {
+    Response::builder().status(status).body(body).unwrap()
+}
+
 fn do400(reason: Body) -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::BAD_REQUEST)
-        .body(reason)
-        .unwrap()
+    make_response(StatusCode::BAD_REQUEST, reason)
 }
 
 fn do500() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Body::from("Internal Server Error"))
-        .unwrap()
+    make_response(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "Internal server error".into(),
+    )
+}
+
+fn do404() -> Response<Body> {
+    make_response(StatusCode::NOT_FOUND, "Not found".into())
 }
 
 #[derive(Debug)]
@@ -54,27 +59,22 @@ async fn get_tasks(client: Arc<Client>) -> Result<Response<Body>, Errors> {
 }
 
 async fn serve(client: Arc<Client>, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
-    match (req.method(), req.uri().path()) {
-        (&Method::POST, "/tasks") => match post_task(client, req).await {
-            Ok(r) => Ok(r),
-            Err(e) => {
-                println!("Unhandled error: {:?}", e);
-                Ok(do500())
-            }
-        },
-        (&Method::GET, "/tasks") => match get_tasks(client).await {
-            Ok(r) => Ok(r),
-            Err(e) => {
-                println!("Unhandled error: {:?}", e);
-                Ok(do500())
-            }
-        },
+    let result = match (req.method(), req.uri().path()) {
+        (&Method::POST, "/tasks") => post_task(client, req).await,
+        (&Method::GET, "/tasks") => get_tasks(client).await,
+        _ => Ok(do404()),
+    };
 
-        // Return the 404 Not Found for other routes.
-        _ => {
-            let mut not_found = Response::default();
-            *not_found.status_mut() = StatusCode::NOT_FOUND;
-            Ok(not_found)
+    match result {
+        Ok(response) => Ok(response),
+        Err(Errors::Hyper(e)) => Err(e),
+        Err(Errors::Json(e)) => {
+            eprintln!("JSON error: {}", e);
+            Ok(do500())
+        }
+        Err(Errors::Database(e)) => {
+            eprintln!("Database error: {}", e);
+            Ok(do500())
         }
     }
 }
