@@ -11,14 +11,12 @@ pub struct Task {
 }
 
 pub async fn insert(client: Arc<Client>, task: Task) -> Result<(), tokio_postgres::Error> {
-    let client = &*client;
     client
         .query(
             "INSERT INTO tasks (person, description) VALUES ($1, $2)",
             &[&task.person, &task.description],
         )
         .await?;
-
     Ok(())
 }
 
