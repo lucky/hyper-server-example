@@ -21,10 +21,17 @@ fn do500() -> Response<Body> {
         .unwrap()
 }
 
+#[derive(Debug)]
+enum Errors {
+    Database(tokio_postgres::Error),
+    Json(serde_json::Error),
+    Hyper(hyper::Error),
+}
+
 async fn post_task(
     client: Arc<Client>,
     req: Request<Body>,
-) -> Result<Response<Body>, hyper::Error> {
+) -> Result<Response<Body>, Errors> {
     let content_type = match req.headers().get("Content-Type") {
         Some(ct) => ct.to_str().unwrap(),
         None => "",
@@ -32,28 +39,16 @@ async fn post_task(
     if !content_type.contains("application/json") {
         return Ok(do400("Content-Type must be application/json".into()));
     }
-    let whole_body = hyper::body::to_bytes(req.into_body()).await?;
-    let t: Task = match serde_json::from_slice(&whole_body.slice(0..)) {
-        Ok(t) => t,
-        Err(e) => {
-            println!("error happened: {}", e);
-            return Ok(do500());
-        }
-    };
-    match insert(client, t).await {
-        Ok(()) => Ok(Response::new(Body::empty())),
-        Err(e) => {
-            println!("Error talking to database! {:?}", e);
-            Ok(do500())
-        }
-    }
+    let whole_body = hyper::body::to_bytes(req.into_body()).await.map_err(Errors::Hyper)?;
+    let t: Task = serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?;
+    insert(client, t).await.map_err(Errors::Database)?;
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(""))
+        .unwrap())
 }
 
-#[derive(Debug)]
-enum Errors {
-    Database(tokio_postgres::Error),
-    Json(serde_json::Error),
-}
+
 
 async fn get_tasks(
     client: Arc<Client>,
@@ -65,7 +60,13 @@ async fn get_tasks(
 
 async fn serve(client: Arc<Client>, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
     match (req.method(), req.uri().path()) {
-        (&Method::POST, "/tasks") => post_task(client, req).await,
+        (&Method::POST, "/tasks") => match post_task(client, req).await {
+            Ok(r) => Ok(r),
+            Err(e) => {
+                println!("Unhandled error: {:?}", e);
+                Ok(do500())
+            }
+        },
         (&Method::GET, "/tasks") => match get_tasks(client).await {
             Ok(r) => Ok(r),
             Err(e) => {
