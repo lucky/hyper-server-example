@@ -28,10 +28,7 @@ enum Errors {
     Hyper(hyper::Error),
 }
 
-async fn post_task(
-    client: Arc<Client>,
-    req: Request<Body>,
-) -> Result<Response<Body>, Errors> {
+async fn post_task(client: Arc<Client>, req: Request<Body>) -> Result<Response<Body>, Errors> {
     let content_type = match req.headers().get("Content-Type") {
         Some(ct) => ct.to_str().unwrap(),
         None => "",
@@ -39,7 +36,9 @@ async fn post_task(
     if !content_type.contains("application/json") {
         return Ok(do400("Content-Type must be application/json".into()));
     }
-    let whole_body = hyper::body::to_bytes(req.into_body()).await.map_err(Errors::Hyper)?;
+    let whole_body = hyper::body::to_bytes(req.into_body())
+        .await
+        .map_err(Errors::Hyper)?;
     let t: Task = serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?;
     insert(client, t).await.map_err(Errors::Database)?;
     Ok(Response::builder()
@@ -48,11 +47,7 @@ async fn post_task(
         .unwrap())
 }
 
-
-
-async fn get_tasks(
-    client: Arc<Client>,
-) -> Result<Response<Body>, Errors> {
+async fn get_tasks(client: Arc<Client>) -> Result<Response<Body>, Errors> {
     let tasks = select_all(client).await.map_err(Errors::Database)?;
     let json = serde_json::to_string(&tasks).map_err(Errors::Json)?;
     Ok(Response::new(Body::from(json)))
