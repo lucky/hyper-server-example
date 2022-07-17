@@ -44,7 +44,7 @@ pub async fn get(id: i32, client: Arc<Client>) -> Result<Option<Task>, tokio_pos
         .query("SELECT id, person, description, created_at, completed_at FROM tasks WHERE id = $1 LIMIT 1", &[&id])
         .await?;
 
-    if rows.len() == 0 {
+    if rows.is_empty() {
         Ok(None)
     } else {
         Ok(Some(task_from_row(&rows[0])))

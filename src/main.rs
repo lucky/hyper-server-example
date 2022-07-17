@@ -75,12 +75,12 @@ async fn complete_task(id: i32, client: Arc<Client>) -> Result<Response<Body>, E
                 .await
                 .map_err(Errors::Database)?
             {
-                return Ok(do200("".into()));
+                Ok(do200("".into()))
             } else {
-                return Ok(do400("Task is already complete".into()));
+                Ok(do400("Task is already complete".into()))
             }
         }
-        None => return Ok(do404()),
+        None => Ok(do404()),
     }
 }
 
