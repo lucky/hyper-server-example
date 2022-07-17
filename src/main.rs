@@ -9,10 +9,10 @@ mod tasks;
 use tasks::{insert_task, select_all_tasks, Task};
 
 fn do500() -> Result<Response<Body>, Error> {
-    return Ok(Response::builder()
+    Ok(Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(Body::from("Internal Server Error"))
-        .unwrap());
+        .unwrap())
 }
 
 async fn post_task(
@@ -94,7 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         async move {
             Ok::<_, Error>(service_fn(move |_req| {
                 let client = client.clone();
-                async move { Ok::<_, Error>(serve(client, _req).await?) }
+                async move { serve(client, _req).await }
             }))
         }
     });
