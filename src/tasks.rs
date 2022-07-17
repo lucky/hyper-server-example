@@ -21,7 +21,6 @@ pub async fn insert(client: Arc<Client>, task: Task) -> Result<(), tokio_postgre
 }
 
 pub async fn select_all(client: Arc<Client>) -> Result<Vec<Task>, tokio_postgres::Error> {
-    let client = &*client;
     let task_vec = client
         .query("SELECT id, person, description FROM tasks", &[])
         .await?
