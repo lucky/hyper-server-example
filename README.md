@@ -15,7 +15,9 @@ Build with `cargo build`.
     create table tasks (
       id SERIAL,
       person TEXT,
-      description TEXT
+      description TEXT,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+      completed_at TIMESTAMP WITH TIME ZONE NULL
     );
     ```
  2. Set the `DATABASE_URL` environment variable (example: `postgres://postgres:password@localhost:7432/task_example`)
@@ -24,14 +26,16 @@ Build with `cargo build`.
 You can submit new tasks via curl, for example:
 
 ```sh
-curl -iX POST http://localhost:3030/tasks -d '{"person": "alex", "description": "walk the dog"}'
+curl -iX POST http://localhost:3030/tasks \
+  -H 'Content-Type: application/json' \
+  -d '{"person": "alex", "description": "walk the dog"}'
 ```
 
 And then view subsequent tasks at `http://localhost:3030/tasks`:
 
 ```sh
 curl http://localhost:3030/tasks
-[{"id":1,"person":"alex","description":"walk the dog"}]
+[{"id":5,"person":"alex","description":"walk the dog","created_at":"2022-07-17T22:13:14.819717Z","completed_at":null}]
 ```
 
 ## Testing
