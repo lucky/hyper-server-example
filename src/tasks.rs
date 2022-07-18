@@ -1,7 +1,8 @@
 use chrono::{DateTime, Utc};
+use deadpool_postgres::{Client, Pool};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio_postgres::Client;
+
+use crate::errors::Errors;
 
 #[derive(Serialize, Deserialize)]
 pub struct Task {
@@ -12,33 +13,6 @@ pub struct Task {
     #[serde(default = "Utc::now")]
     pub created_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
-}
-
-pub async fn insert(client: Arc<Client>, task: Task) -> Result<(), tokio_postgres::Error> {
-    client
-        .execute(
-            "INSERT INTO tasks (person, description) VALUES ($1, $2)",
-            &[&task.person, &task.description],
-        )
-        .await?;
-    Ok(())
-}
-
-pub async fn select_all(client: Arc<Client>) -> Result<Vec<Task>, tokio_postgres::Error> {
-    let task_vec = client
-        .query("SELECT id, person, description, created_at, completed_at FROM tasks ORDER BY created_at DESC", &[])
-        .await?
-        .iter()
-        .map(std::convert::Into::into)
-        .collect();
-    Ok(task_vec)
-}
-
-pub async fn get(id: i32, client: Arc<Client>) -> Result<Option<Task>, tokio_postgres::Error> {
-    let row = client
-        .query_opt("SELECT id, person, description, created_at, completed_at FROM tasks WHERE id = $1 LIMIT 1", &[&id])
-        .await?;
-    Ok(row.map(|row| (&row).into()))
 }
 
 impl From<&tokio_postgres::Row> for Task {
@@ -58,12 +32,59 @@ impl From<&tokio_postgres::Row> for Task {
     }
 }
 
-pub async fn mark_complete(id: i32, client: Arc<Client>) -> Result<bool, tokio_postgres::Error> {
-    let result = client
-        .execute(
-            "UPDATE tasks SET completed_at = NOW() WHERE id = $1 AND completed_at IS NULL",
-            &[&id],
-        )
-        .await?;
-    Ok(1 == result)
+pub struct TaskDAO {
+    pool: Pool,
+}
+
+impl TaskDAO {
+    pub fn new(pool: Pool) -> TaskDAO {
+        TaskDAO { pool }
+    }
+
+    async fn get_client(&self) -> Result<Client, Errors> {
+        self.pool.get().await.map_err(Errors::Pool)
+    }
+
+    pub async fn insert(&self, task: Task) -> Result<(), Errors> {
+        let client = self.get_client().await?;
+        client
+            .execute(
+                "INSERT INTO tasks (person, description) VALUES ($1, $2)",
+                &[&task.person, &task.description],
+            )
+            .await
+            .map_err(Errors::Database)?;
+        Ok(())
+    }
+
+    pub async fn select_all(&self) -> Result<Vec<Task>, Errors> {
+        let client = self.get_client().await?;
+        let task_vec = client
+        .query("SELECT id, person, description, created_at, completed_at FROM tasks ORDER BY created_at DESC", &[])
+        .await.map_err(Errors::Database)?
+        .iter()
+        .map(std::convert::Into::into)
+        .collect();
+        Ok(task_vec)
+    }
+
+    pub async fn get(&self, id: i32) -> Result<Option<Task>, Errors> {
+        let client = self.get_client().await?;
+        let row = client
+        .query_opt("SELECT id, person, description, created_at, completed_at FROM tasks WHERE id = $1 LIMIT 1", &[&id])
+        .await.map_err(Errors::Database)?;
+        Ok(row.map(|row| (&row).into()))
+    }
+
+    pub async fn mark_complete(&self, id: i32) -> Result<bool, Errors> {
+        let client = self.get_client().await?;
+        let result = client
+            .execute(
+                "UPDATE tasks SET completed_at = NOW() WHERE id = $1 AND completed_at IS NULL",
+                &[&id],
+            )
+            .await
+            .map_err(Errors::Database)?;
+        Ok(1 == result)
+    }
 }
