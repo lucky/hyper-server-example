@@ -15,7 +15,10 @@ lazy_static! {
 }
 
 fn make_response(status: StatusCode, body: Body) -> Response<Body> {
-    Response::builder().status(status).body(body).unwrap()
+    Response::builder()
+        .status(status)
+        .body(body)
+        .expect("Failed to create response")
 }
 
 fn do400(reason: Body) -> Response<Body> {
@@ -42,7 +45,7 @@ async fn post_task(
     req: Request<Body>,
 ) -> Result<Response<Body>, Errors> {
     let content_type = match req.headers().get("Content-Type") {
-        Some(ct) => ct.to_str().unwrap(),
+        Some(ct) => ct.to_str().expect("Failed to parse content type"),
         None => "",
     };
     if !content_type.contains("application/json") {
@@ -122,7 +125,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         recycling_method: RecyclingMethod::Fast,
     };
     let mgr = Manager::from_config(config, NoTls, mgr_config);
-    let pool = Pool::builder(mgr).max_size(16).build().expect("Failed to create pool");
+    let pool = Pool::builder(mgr)
+        .max_size(16)
+        .build()
+        .expect("Failed to create pool");
     let task_dao = Arc::new(tasks::TaskDAO::new(pool));
 
     let make_service = make_service_fn(move |_| {
