@@ -2,26 +2,17 @@
 
 This is an example [Hyper](https://hyper.rs) server that creates and uses a PostgreSQL connection. This sounds trivial, but due to borrow-checking and my own lack of experience with Rust, this took a lot of trial and error for me to figure out. Since I couldn't find a reasonably simple example elsewhere, I decided to publish this here for future reference.
 
-**This has not been vetted by true Rust developers, so don't consider any of this to be a "best practice".** 
+**This has not been vetted by true Rust developers, so don't consider any of this to be a "best practice".**
 
 ## Building
+
+**Note**: this repository is setup to use a [devcontainer](https://code.visualstudio.com/docs/remote/containers), so building, running, etc, is expected to happen from within that container.
 
 Build with `cargo build`.
 
 ## Running
 
- 1. Create the table in a database
-    ```sql
-    create table tasks (
-      id SERIAL,
-      person TEXT,
-      description TEXT,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-      completed_at TIMESTAMP WITH TIME ZONE NULL
-    );
-    ```
- 2. Set the `DATABASE_URL` environment variable (example: `postgres://postgres:password@localhost:7432/task_example`)
- 3. Run with `cargo run`
+Run with `cargo run`
 
 You can submit new tasks via curl, for example:
 

@@ -115,6 +115,23 @@ async fn serve(
     }
 }
 
+async fn create_table(pool: &Pool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let client = pool.get().await?;
+    client
+        .execute(
+            "CREATE TABLE IF NOT EXISTS tasks (
+        id SERIAL,
+        person TEXT,
+        description TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+        completed_at TIMESTAMP WITH TIME ZONE NULL
+      );",
+            &[],
+        )
+        .await?;
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = ([127, 0, 0, 1], 3030).into();
@@ -129,6 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .max_size(16)
         .build()
         .expect("Failed to create pool");
+    create_table(&pool).await?;
     let task_dao = Arc::new(tasks::TaskDAO::new(pool));
 
     let make_service = make_service_fn(move |_| {
