@@ -6,9 +6,11 @@ This is an example [Hyper](https://hyper.rs) server that creates and uses a Post
 
 ## Building
 
-**Note**: this repository is setup to use a [devcontainer](https://code.visualstudio.com/docs/remote/containers), so building, running, etc, is expected to happen from within that container.
+This repository is setup to use a [devcontainer](https://code.visualstudio.com/docs/remote/containers), so building, running, etc, is expected to happen from within that container.
 
 Build with `cargo build`.
+
+**Note**: The `target-dir` build directive has been overriden, see [.cargo/config.toml] for specifics.
 
 ## Running
 
