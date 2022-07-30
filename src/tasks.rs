@@ -1,14 +1,19 @@
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Pool};
 use serde::{Deserialize, Serialize};
+use validator::{Validate};
 
 use crate::errors::Errors;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Validate)]
 pub struct Task {
     #[serde(default)]
     pub id: i32,
+    #[validate(length(min = 1, max = 100))]
+    #[serde(default)]
     pub person: String,
+    #[validate(length(min = 1, max = 1000))]
+    #[serde(default)]
     pub description: String,
     #[serde(default = "Utc::now")]
     pub created_at: DateTime<Utc>,
@@ -46,6 +51,7 @@ impl TaskDAO {
     }
 
     pub async fn insert(&self, task: Task) -> Result<(), Errors> {
+        task.validate().map_err(Errors::Validation)?;
         let client = self.get_client().await?;
         client
             .execute(

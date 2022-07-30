@@ -112,6 +112,17 @@ async fn serve(
             eprintln!("Pool error: {}", e);
             Ok(do500())
         }
+        Err(Errors::Validation(e)) => {
+            eprintln!("Validation error: {}", e);
+            let user_errors = errors::map_errors(e);
+            match serde_json::to_string(&user_errors) {
+                Ok(json) => Ok(do400(json.into())),
+                Err(e) => {
+                    eprintln!("JSON error: {}", e);
+                    Ok(do500())
+                }
+            }
+        }
     }
 }
 
