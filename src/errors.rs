@@ -20,17 +20,19 @@ pub struct UserError {
     pub errors: Vec<validator::ValidationError>,
 }
 
-pub fn map_errors(e: validator::ValidationErrors) -> UserErrors {
-    let mut errors = Vec::new();
-    for (field, validation_errors) in e.field_errors() {
-        let mut field_errors = Vec::new();
-        for error in validation_errors {
-            field_errors.push(error.clone());
+impl From<validator::ValidationErrors> for UserErrors {
+    fn from(val: validator::ValidationErrors) -> Self {
+        let mut errs = Vec::new();
+        for (field, validation_errors) in val.field_errors() {
+            let mut field_errors = Vec::new();
+            for error in validation_errors {
+                field_errors.push(error.clone());
+            }
+            errs.push(UserError {
+                field: field.to_string(),
+                errors: field_errors,
+            });
         }
-        errors.push(UserError {
-            field: field.to_string(),
-            errors: field_errors,
-        });
+        UserErrors { errors: errs }
     }
-    UserErrors { errors }
 }

@@ -6,6 +6,8 @@ use lazy_static::lazy_static;
 use std::sync::Arc;
 use tokio_postgres::{Config, NoTls};
 
+use crate::errors::UserErrors;
+
 mod errors;
 mod tasks;
 
@@ -114,8 +116,7 @@ async fn serve(
         }
         Err(Errors::Validation(e)) => {
             eprintln!("Validation error: {}", e);
-            let user_errors = errors::map_errors(e);
-            match serde_json::to_string(&user_errors) {
+            match serde_json::to_string::<UserErrors>(&e.into()) {
                 Ok(json) => Ok(do400(json.into())),
                 Err(e) => {
                     eprintln!("JSON error: {}", e);
