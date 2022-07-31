@@ -10,6 +10,7 @@ use crate::errors::UserErrors;
 
 mod errors;
 mod tasks;
+mod validation;
 
 lazy_static! {
     static ref COMPLETE_TASK_RE: regex::Regex =
@@ -56,8 +57,8 @@ async fn post_task(
     let whole_body = hyper::body::to_bytes(req.into_body())
         .await
         .map_err(Errors::Hyper)?;
-    let t: tasks::Task = serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?;
-    task_dao.insert(t).await?;
+    let t: tasks::TaskInput = serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?;
+    task_dao.insert(t.try_into()?).await?;
     Ok(do200("".into()))
 }
 
