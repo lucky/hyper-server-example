@@ -57,8 +57,9 @@ async fn post_task(
     let whole_body = hyper::body::to_bytes(req.into_body())
         .await
         .map_err(Errors::Hyper)?;
-    let t: tasks::TaskInput = serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?;
-    task_dao.insert(t.try_into()?).await?;
+    let t: tasks::TaskInput =
+        serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?;
+    task_dao.insert(validation::Input(t).try_into()?).await?;
     Ok(do200("".into()))
 }
 

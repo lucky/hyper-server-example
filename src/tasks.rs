@@ -1,11 +1,10 @@
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Pool};
 use serde::{Deserialize, Serialize};
-use validator::{Validate};
+use validator::Validate;
 
 use crate::errors::Errors;
 use crate::validation::Valid;
-
 
 #[derive(Deserialize, Validate)]
 pub struct TaskInput {
@@ -15,14 +14,6 @@ pub struct TaskInput {
     #[validate(length(min = 1, max = 1000))]
     #[serde(default)]
     pub description: String,
-}
-
-impl TryFrom<TaskInput> for Valid<TaskInput> {
-    type Error = Errors;
-    fn try_from(task: TaskInput) -> Result<Self, Self::Error> {
-        task.validate().map_err(Errors::Validation)?;
-        Ok(Valid(task))
-    }
 }
 
 #[derive(Serialize)]
@@ -64,12 +55,12 @@ impl TaskDAO {
         self.pool.get().await.map_err(Errors::Pool)
     }
 
-    pub async fn insert(&self, task: Valid<TaskInput>) -> Result<(), Errors> {
+    pub async fn insert(&self, Valid(task): Valid<TaskInput>) -> Result<(), Errors> {
         let client = self.get_client().await?;
         client
             .execute(
                 "INSERT INTO tasks (person, description) VALUES ($1, $2)",
-                &[&task.0.person, &task.0.description],
+                &[&task.person, &task.description],
             )
             .await
             .map_err(Errors::Database)?;
