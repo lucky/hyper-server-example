@@ -5,6 +5,7 @@ use hyper::{Body, Error, Method, Request, Response, Server, StatusCode};
 use lazy_static::lazy_static;
 use std::sync::Arc;
 use tokio_postgres::{Config, NoTls};
+use validation::TryIntoValid;
 
 use crate::errors::UserErrors;
 
@@ -59,7 +60,7 @@ async fn post_task(
         .map_err(Errors::Hyper)?;
     let t: tasks::TaskInput =
         serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?;
-    task_dao.insert(validation::Input(t).try_into()?).await?;
+    task_dao.insert(t.try_into_valid()?).await?;
     Ok(do200("".into()))
 }
 

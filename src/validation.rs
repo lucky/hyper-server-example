@@ -1,12 +1,14 @@
 use crate::errors::Errors;
 
-pub struct Input<T: validator::Validate>(pub T);
 pub struct Valid<T>(pub T);
 
-impl<T: validator::Validate> TryFrom<Input<T>> for Valid<T> {
-    type Error = Errors;
-    fn try_from(Input(t): Input<T>) -> Result<Self, Self::Error> {
-        t.validate().map_err(Errors::Validation)?;
-        Ok(Valid(t))
+pub trait TryIntoValid<T> {
+    fn try_into_valid(self) -> Result<Valid<T>, Errors>;
+}
+
+impl<T: validator::Validate> TryIntoValid<T> for T {
+    fn try_into_valid(self) -> Result<Valid<T>, Errors> {
+        self.validate().map_err(Errors::Validation)?;
+        Ok(Valid(self))
     }
 }
