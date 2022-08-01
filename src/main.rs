@@ -48,18 +48,17 @@ async fn post_task(
     task_dao: Arc<tasks::TaskDAO>,
     req: Request<Body>,
 ) -> Result<Response<Body>, Errors> {
-    let content_type = match req.headers().get("Content-Type") {
-        Some(ct) => ct.to_str().expect("Failed to parse content type"),
-        None => "",
-    };
-    if !content_type.contains("application/json") {
-        return Ok(do400("Content-Type must be application/json".into()));
-    }
+    let content_type: InputContentTypes = req.headers().get("Content-Type").into();
     let whole_body = hyper::body::to_bytes(req.into_body())
         .await
         .map_err(Errors::Hyper)?;
-    let t: tasks::TaskInput =
-        serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?;
+
+    let t: tasks::TaskInput = match content_type {
+        InputContentTypes::Json => {
+            serde_json::from_slice(&whole_body.slice(0..)).map_err(Errors::Json)?
+        }
+        _ => return Ok(do400("Unknown content type".into())),
+    };
     task_dao.insert(t.try_into_valid()?).await?;
     Ok(do200("".into()))
 }
@@ -89,7 +88,7 @@ async fn index(
     task_dao: Arc<tasks::TaskDAO>,
     _req: Request<Body>,
 ) -> Result<Response<Body>, Errors> {
-    let template = jinja.get_template("index").map_err(Errors::Template)?;
+    let template = jinja.get_template("index.html").map_err(Errors::Template)?;
     let tasks = task_dao.select_all().await?;
     let body = template
         .render(minijinja::context! { tasks => tasks })
@@ -168,6 +167,27 @@ async fn create_table(pool: &Pool) -> Result<(), Box<dyn std::error::Error + Sen
         )
         .await?;
     Ok(())
+}
+
+enum InputContentTypes {
+    Json,
+    Form,
+    Unknown,
+}
+
+impl From<Option<&hyper::header::HeaderValue>> for InputContentTypes {
+    fn from(value: Option<&hyper::header::HeaderValue>) -> Self {
+        match value {
+            Some(v) => match v.to_str() {
+                Ok(s) if s.starts_with("application/json") => InputContentTypes::Json,
+                Ok(s) if s.starts_with("application/x-www-form-urlencoded") => {
+                    InputContentTypes::Form
+                }
+                _ => InputContentTypes::Unknown,
+            },
+            None => InputContentTypes::Unknown,
+        }
+    }
 }
 
 #[tokio::main]
