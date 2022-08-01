@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<h1>Tasks</h1>
+<ul>
+{% for task in tasks %}
+    <li>{{ task.description }} -- Assigned to: {{ task.person }}</li>
+{% endfor %}
+</ul>
+{% endblock %}
+
+{% block title %}All tasks{% endblock %}

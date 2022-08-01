@@ -21,3 +21,5 @@ validator = { version = "0.16.0", features = ["derive"] }
 regex = "1.6.0"
 
 lazy_static = "1.4"
+
+minijinja = "0.17.0"

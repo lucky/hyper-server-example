@@ -84,11 +84,30 @@ async fn complete_task(id: i32, task_dao: Arc<tasks::TaskDAO>) -> Result<Respons
     }
 }
 
+async fn index(
+    jinja: minijinja::Environment<'static>,
+    task_dao: Arc<tasks::TaskDAO>,
+    _req: Request<Body>,
+) -> Result<Response<Body>, Errors> {
+    let template = jinja.get_template("index").map_err(Errors::Template)?;
+    let tasks = task_dao.select_all().await?;
+    let body = template
+        .render(minijinja::context! { tasks => tasks })
+        .map_err(Errors::Template)?;
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "text/html")
+        .body(body.into())
+        .expect("Failed to create response"))
+}
+
 async fn serve(
     task_dao: Arc<tasks::TaskDAO>,
     req: Request<Body>,
+    jinja: minijinja::Environment<'static>,
 ) -> Result<Response<Body>, hyper::Error> {
     let result = match (req.method(), req.uri().path()) {
+        (&Method::GET, "/") => index(jinja, task_dao, req).await,
         (&Method::POST, "/tasks") => post_task(task_dao, req).await,
         (&Method::GET, "/tasks") => get_tasks(task_dao).await,
         (&Method::POST, path) if COMPLETE_TASK_RE.is_match(path) => {
@@ -115,6 +134,10 @@ async fn serve(
         }
         Err(Errors::Pool(e)) => {
             eprintln!("Pool error: {}", e);
+            Ok(do500())
+        }
+        Err(Errors::Template(e)) => {
+            eprintln!("Template error: {}", e);
             Ok(do500())
         }
         Err(Errors::Validation(e)) => {
@@ -163,14 +186,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .expect("Failed to create pool");
     create_table(&pool).await?;
     let task_dao = Arc::new(tasks::TaskDAO::new(pool));
+    let mut jinja = minijinja::Environment::new();
+    jinja.add_template("layout.html", include_str!("../templates/layout.html"))?;
+    jinja.add_template("index.html", include_str!("../templates/index.html"))?;
 
     let make_service = make_service_fn(move |_| {
         let task_dao = task_dao.clone();
-
+        let jinja = jinja.clone();
         async move {
             Ok::<_, Error>(service_fn(move |req| {
                 let task_dao = task_dao.clone();
-                async move { serve(task_dao, req).await }
+                let jinja = jinja.clone();
+                async move { serve(task_dao, req, jinja).await }
             }))
         }
     });

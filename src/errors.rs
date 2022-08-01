@@ -7,6 +7,7 @@ pub enum Errors {
     Hyper(hyper::Error),
     Pool(deadpool_postgres::PoolError),
     Validation(validator::ValidationErrors),
+    Template(minijinja::Error),
 }
 
 #[derive(Serialize)]
